@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>TiendaTech</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#111}
+.app{max-width:1100px;margin:0 auto;padding:2rem 1.5rem}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;padding-bottom:1rem;border-bottom:1px solid #e0e0e0}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:#111;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
+.logo h1{font-size:18px;font-weight:600}
+.logo p{font-size:12px;color:#888;font-family:monospace}
+.badge{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e0e0e0;border-radius:20px;padding:6px 12px;font-size:12px;color:#888;font-family:monospace}
+.dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:2rem}
+.stat{background:#fff;border-radius:10px;padding:1rem;border:1px solid #e8e8e8}
+.stat-label{font-size:12px;color:#888;margin-bottom:4px;font-family:monospace}
+.stat-val{font-size:26px;font-weight:600;letter-spacing:-1px}
+.stat-sub{font-size:12px;color:#aaa;margin-top:2px}
+.main{display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden}
+.card-head{padding:1rem 1.25rem;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:500}
+.filters{display:flex;gap:6px}
+.fbtn{font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid #ddd;background:transparent;color:#666;cursor:pointer;font-family:inherit;transition:all .15s}
+.fbtn.active{background:#111;color:#fff;border-color:#111}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-family:monospace;color:#aaa;text-align:left;padding:10px 1.25rem;border-bottom:1px solid #f0f0f0;font-weight:400;text-transform:uppercase;letter-spacing:.5px}
+td{padding:12px 1.25rem;font-size:13px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.pname{font-weight:500;font-size:13px}
+.pmarca{font-size:12px;color:#aaa;margin-top:2px}
+.cat{font-size:11px;padding:3px 8px;border-radius:4px;background:#f5f5f5;color:#666;font-family:monospace}
+.price{font-family:monospace;font-size:13px;font-weight:700}
+.slow{color:#ef4444}
+.sok{color:#22c55e}
+.abtn{background:transparent;border:none;cursor:pointer;padding:4px 8px;border-radius:4px;font-size:12px;color:#aaa;transition:all .15s}
+.abtn:hover{background:#f5f5f5}
+.abtn.del:hover{color:#ef4444}
+.abtn.edit:hover{color:#3b82f6}
+.sidebar{display:flex;flex-direction:column;gap:1rem}
+.form{padding:1.25rem}
+.form label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-family:monospace}
+.form input,.form select{width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;margin-bottom:10px;outline:none}
+.form input:focus,.form select:focus{border-color:#111;background:#fff}
+.btn-primary{width:100%;padding:9px;background:#111;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.btn-primary:hover{opacity:.8}
+.ops{padding:0}
+.op{display:flex;align-items:center;gap:10px;padding:10px 1.25rem;border-bottom:1px solid #f5f5f5;font-size:12px}
+.op:last-child{border-bottom:none}
+.odot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.odot.insert{background:#22c55e}
+.odot.update{background:#3b82f6}
+.odot.delete{background:#ef4444}
+.odot.read{background:#f59e0b}
+.otext{flex:1;color:#666}
+.otime{font-size:11px;color:#aaa;font-family:monospace}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;border:1px solid #e8e8e8;padding:1.5rem;width:360px;max-width:90vw}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:1rem}
+.modal label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-family:monospace}
+.modal input{width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;margin-bottom:10px;outline:none}
+.mbtns{display:flex;gap:8px;margin-top:.5rem}
+.btn-cancel{flex:1;padding:8px;background:transparent;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">TT</div>
+      <div>
+        <h1>TiendaTech</h1>
+        <p>gestión de inventario</p>
+      </div>
+    </div>
+    <div class="badge"><div class="dot"></div>Redis · localhost:6379</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">productos</div><div class="stat-val" id="st-total">-</div><div class="stat-sub">en catálogo</div></div>
+    <div class="stat"><div class="stat-label">stock total</div><div class="stat-val" id="st-stock">-</div><div class="stat-sub">unidades</div></div>
+    <div class="stat"><div class="stat-label">precio prom.</div><div class="stat-val" id="st-avg">-</div><div class="stat-sub">por producto</div></div>
+    <div class="stat"><div class="stat-label">stock bajo</div><div class="stat-val" id="st-low" style="color:#ef4444">-</div><div class="stat-sub">requieren reposición</div></div>
+  </div>
+
+  <div class="main">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Productos</span>
+        <div class="filters">
+          <button class="fbtn active" onclick="filtrar('todos',this)">Todos</button>
+          <button class="fbtn" onclick="filtrar('Perifericos',this)">Periféricos</button>
+          <button class="fbtn" onclick="filtrar('Samsung',this)">Samsung</button>
+          <button class="fbtn" onclick="filtrar('bajo',this)">Stock bajo</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
+        <tbody id="tabla"></tbody>
+      </table>
+    </div>
+
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Agregar producto</span></div>
+        <div class="form">
+          <label>Nombre</label><input type="text" id="f-nombre" placeholder="Ej: Notebook HP...">
+          <label>Categoría</label>
+          <select id="f-cat">
+            <option>Notebooks</option><option>Celulares</option><option>Audio</option>
+            <option>Perifericos</option><option>Televisores</option><option>Tablets</option>
+            <option>Monitores</option><option>Almacenamiento</option>
+          </select>
+          <label>Marca</label><input type="text" id="f-marca" placeholder="Ej: HP">
+          <label>Precio ($)</label><input type="number" id="f-precio" placeholder="150000">
+          <label>Stock</label><input type="number" id="f-stock" placeholder="10">
+          <button class="btn-primary" onclick="agregarProducto()">Agregar producto</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="card-title">Actividad reciente</span></div>
+        <div class="ops" id="ops">
+          <div class="op"><div class="odot read"></div><span class="otext">Sistema iniciado</span><span class="otime">ahora</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modal">
+  <div class="modal">
+    <h3>Editar producto</h3>
+    <label>Nombre</label><input type="text" id="m-nombre">
+    <label>Precio</label><input type="number" id="m-precio">
+    <label>Stock</label><input type="number" id="m-stock">
+    <div class="mbtns">
+      <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primary" style="flex:1" onclick="guardarEdicion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js">
+</script>
+</body>
+</html>
