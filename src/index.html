@@ -14,6 +14,10 @@ body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;color:#111}
 .logo p{font-size:12px;color:#888;font-family:monospace}
 .badge{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e0e0e0;border-radius:20px;padding:6px 12px;font-size:12px;color:#888;font-family:monospace}
 .dot{width:7px;height:7px;background:#22c55e;border-radius:50%;animation:pulse 2s infinite}
+.user-info{display:flex;align-items:center;gap:8px;font-size:13px}
+.user-role{font-size:11px;padding:2px 8px;border-radius:4px;background:#e0e0e0;color:#666;font-family:monospace}
+.btn-logout{padding:4px 10px;border:1px solid #ddd;background:transparent;border-radius:4px;cursor:pointer;font-size:12px}
+.btn-logout:hover{background:#f5f5f5}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:2rem}
 .stat{background:#fff;border-radius:10px;padding:1rem;border:1px solid #e8e8e8}
@@ -67,10 +71,41 @@ tr:hover td{background:#fafafa}
 .modal input{width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;margin-bottom:10px;outline:none}
 .mbtns{display:flex;gap:8px;margin-top:.5rem}
 .btn-cancel{flex:1;padding:8px;background:transparent;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f5}
+.login-box{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:2rem;width:360px}
+.login-box h2{font-size:20px;font-weight:600;margin-bottom:1.5rem;text-align:center}
+.login-box label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-family:monospace}
+.login-box input{width:100%;padding:10px 12px;font-size:14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;margin-bottom:14px;outline:none}
+.login-box input:focus{border-color:#111;background:#fff}
+.login-error{color:#ef4444;font-size:13px;margin-bottom:10px;text-align:center;display:none}
+.login-btn{width:100%;padding:10px;background:#111;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.login-btn:hover{opacity:.8}
+.login-info{font-size:12px;color:#888;margin-top:1rem;text-align:center}
+.login-info span{display:block;margin:4px 0}
+.app{display:none}
+.admin-only{display:none}
 </style>
 </head>
 <body>
-<div class="app">
+<div id="login-page" class="login-page">
+  <div class="login-box">
+    <h2>TiendaTech</h2>
+    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+    <label>Usuario</label>
+    <input type="text" id="username" placeholder="admin">
+    <label>Contraseña</label>
+    <input type="password" id="password" placeholder="••••••">
+    <button class="login-btn" onclick="login()">Iniciar sesión</button>
+    <div class="login-info">
+      <span>admin / admin123</span>
+      <span>manager / manager123</span>
+      <span>employee / employee123</span>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
   <div class="header">
     <div class="logo">
       <div class="logo-icon">TT</div>
@@ -79,10 +114,18 @@ tr:hover td{background:#fafafa}
         <p>gestión de inventario</p>
       </div>
     </div>
-    <div class="badge"><div class="dot"></div>Redis · localhost:6379</div>
+    <div class="badge">
+      <div class="dot"></div>
+      Redis · localhost:6379
+    </div>
+    <div class="user-info">
+      <span id="user-name"></span>
+      <span class="user-role" id="user-role"></span>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
   </div>
 
-  <div class="stats">
+  <div class="stats" id="stats-section">
     <div class="stat"><div class="stat-label">productos</div><div class="stat-val" id="st-total">-</div><div class="stat-sub">en catálogo</div></div>
     <div class="stat"><div class="stat-label">stock total</div><div class="stat-val" id="st-stock">-</div><div class="stat-sub">unidades</div></div>
     <div class="stat"><div class="stat-label">precio prom.</div><div class="stat-val" id="st-avg">-</div><div class="stat-sub">por producto</div></div>
@@ -93,12 +136,22 @@ tr:hover td{background:#fafafa}
     <div class="card">
       <div class="card-head">
         <span class="card-title">Productos</span>
-        <div class="filters">
-          <button class="fbtn active" onclick="filtrar('todos',this)">Todos</button>
-          <button class="fbtn" onclick="filtrar('Perifericos',this)">Periféricos</button>
-          <button class="fbtn" onclick="filtrar('Samsung',this)">Samsung</button>
-          <button class="fbtn" onclick="filtrar('bajo',this)">Stock bajo</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="busqueda" placeholder="Buscar..." style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;width:150px">
+          <select id="ordenar" onchange="ordenar(this.value)" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+            <option value="id">Ordenar</option>
+            <option value="precio-asc">Precio ↑</option>
+            <option value="precio-desc">Precio ↓</option>
+            <option value="stock-asc">Stock ↑</option>
+            <option value="stock-desc">Stock ↓</option>
+          </select>
         </div>
+      </div>
+      <div class="filters" style="padding:8px 1.25rem;border-bottom:1px solid #f0f0f0">
+        <button class="fbtn active" onclick="filtrar('todos',this)">Todos</button>
+        <button class="fbtn" onclick="filtrar('Perifericos',this)">Periféricos</button>
+        <button class="fbtn" onclick="filtrar('Samsung',this)">Samsung</button>
+        <button class="fbtn" onclick="filtrar('bajo',this)">Stock bajo</button>
       </div>
       <table>
         <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
@@ -107,7 +160,7 @@ tr:hover td{background:#fafafa}
     </div>
 
     <div class="sidebar">
-      <div class="card">
+      <div class="card" id="agregar-card">
         <div class="card-head"><span class="card-title">Agregar producto</span></div>
         <div class="form">
           <label>Nombre</label><input type="text" id="f-nombre" placeholder="Ej: Notebook HP...">
@@ -121,6 +174,18 @@ tr:hover td{background:#fafafa}
           <label>Precio ($)</label><input type="number" id="f-precio" placeholder="150000">
           <label>Stock</label><input type="number" id="f-stock" placeholder="10">
           <button class="btn-primary" onclick="agregarProducto()">Agregar producto</button>
+        </div>
+      </div>
+
+      <div class="card" id="reportes-card" style="display:none">
+        <div class="card-head"><span class="card-title">Reportes</span></div>
+        <div class="form">
+          <div class="stat-label">Total productos</div>
+          <div class="stat-val" id="rep-total">-</div>
+          <div class="stat-label" style="margin-top:10px">Stock total</div>
+          <div class="stat-val" id="rep-stock">-</div>
+          <div class="stat-label" style="margin-top:10px">Valor total</div>
+          <div class="stat-val" id="rep-valor">-</div>
         </div>
       </div>
 
@@ -143,6 +208,17 @@ tr:hover td{background:#fafafa}
     <div class="mbtns">
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
       <button class="btn-primary" style="flex:1" onclick="guardarEdicion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="confirm-overlay">
+  <div class="modal">
+    <h3 id="confirm-titulo">Confirmar</h3>
+    <p id="confirm-mensaje" style="font-size:14px;color:#666;margin-bottom:1rem"></p>
+    <div class="mbtns">
+      <button class="btn-cancel" id="confirm-cancel">Cancelar</button>
+      <button class="btn-primary" style="flex:1" id="confirm-ok">Aceptar</button>
     </div>
   </div>
 </div>
