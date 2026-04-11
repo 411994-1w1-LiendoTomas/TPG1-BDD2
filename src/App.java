@@ -105,15 +105,21 @@ public class App {
             return;
         }
         if (ex.getRequestMethod().equals("GET")) {
-            int totalProductos = jedis.keys("producto:*").size();
+            int activos = 0;
+            int discontinuados = 0;
             int stockTotal = 0;
             int valorTotal = 0;
             for (String key : jedis.keys("producto:*")) {
                 Map<String, String> p = jedis.hgetAll(key);
-                stockTotal += Integer.parseInt(p.getOrDefault("stock", "0"));
-                valorTotal += Integer.parseInt(p.getOrDefault("precio", "0"));
+                if ("true".equals(p.getOrDefault("activo", "true"))) {
+                    activos++;
+                    stockTotal += Integer.parseInt(p.getOrDefault("stock", "0"));
+                    valorTotal += Integer.parseInt(p.getOrDefault("precio", "0"));
+                } else {
+                    discontinuados++;
+                }
             }
-            String json = "{\"totalProductos\":" + totalProductos + ",\"stockTotal\":" + stockTotal + ",\"valorTotal\":" + valorTotal + "}";
+            String json = "{\"activos\":" + activos + ",\"discontinuados\":" + discontinuados + ",\"stockTotal\":" + stockTotal + ",\"valorTotal\":" + valorTotal + "}";
             respond(ex, 200, json);
         }
     }
@@ -169,12 +175,19 @@ public class App {
     }
 
     static void getProductos(HttpExchange ex) throws IOException {
+        String activo = ex.getRequestHeaders().getFirst("X-Filtro-Activo");
         Set<String> keys = jedis.keys("producto:*");
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
         for (String key : keys) {
             Map<String, String> p = jedis.hgetAll(key);
             if (p.isEmpty()) continue;
+            String prodActivo = p.getOrDefault("activo", "true");
+            if (activo != null) {
+                if (!activo.equals(prodActivo)) continue;
+            } else {
+                if (!"true".equals(prodActivo)) continue;
+            }
             if (!first) sb.append(",");
             first = false;
             sb.append(toJson(key, p));
@@ -211,7 +224,7 @@ public class App {
 
     static void deleteProducto(HttpExchange ex, String path) throws IOException {
         String key = path.replace("/api/productos/", "producto:");
-        jedis.del(key);
+        jedis.hset(key, "activo", "false");
         respond(ex, 200, "{\"ok\":true}");
     }
 
@@ -258,6 +271,7 @@ public class App {
         jedis.hset(key, "marca", marca);
         jedis.hset(key, "precio", precio);
         jedis.hset(key, "stock", stock);
+        jedis.hset(key, "activo", "true");
     }
 
     static String toJson(String key, Map<String, String> p) {
@@ -267,7 +281,8 @@ public class App {
                 "\"categoria\":\"" + esc(p.getOrDefault("categoria", "")) + "\"," +
                 "\"marca\":\"" + esc(p.getOrDefault("marca", "")) + "\"," +
                 "\"precio\":" + p.getOrDefault("precio", "0") + "," +
-                "\"stock\":" + p.getOrDefault("stock", "0") + "}";
+                "\"stock\":" + p.getOrDefault("stock", "0") + "," +
+                "\"activo\":\"" + p.getOrDefault("activo", "true") + "\"}";
     }
 
     static Map<String, String> parseJson(String json) {
@@ -299,7 +314,7 @@ public class App {
     static void addCors(HttpExchange ex) {
         ex.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
         ex.getResponseHeaders().set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type,Authorization");
+        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Filtro-Activo");
     }
 
 }

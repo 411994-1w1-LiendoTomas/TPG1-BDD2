@@ -58,8 +58,16 @@ function aplicarPermisos(rol) {
 }
 
 async function cargar() {
-  const r = await fetch('/api/productos');
-  todos = await r.json();
+  todos = [];
+  filtroActivo = 'todos';
+  
+  const r1 = await fetch('/api/productos', {headers: {'X-Filtro-Activo': 'true'}});
+  const activos = await r1.json();
+  
+  const r2 = await fetch('/api/productos', {headers: {'X-Filtro-Activo': 'false'}});
+  const discontinuados = await r2.json();
+  
+  todos = [...activos, ...discontinuados];
   todos.sort((a, b) => parseInt(a.id) - parseInt(b.id));
   aplicarFiltro();
   if (usuarioActual && usuarioActual.rol === 'ADMIN') {
@@ -71,7 +79,8 @@ async function cargarReportes() {
   const r = await fetch('/api/reportes', {headers: authHeader()});
   if (r.ok) {
     const data = await r.json();
-    document.getElementById('rep-total').textContent = data.totalProductos;
+    document.getElementById('rep-activos').textContent = data.activos;
+    document.getElementById('rep-disc').textContent = data.discontinuados;
     document.getElementById('rep-stock').textContent = data.stockTotal;
     document.getElementById('rep-valor').textContent = '$' + (data.valorTotal / 1000000).toFixed(1) + 'M';
   }
@@ -80,9 +89,11 @@ async function cargarReportes() {
 function aplicarFiltro() {
   let lista = todos;
   
-  if (filtroActual === 'Perifericos') lista = lista.filter(p => p.categoria === 'Perifericos');
-  else if (filtroActual === 'Samsung') lista = lista.filter(p => p.marca === 'Samsung');
-  else if (filtroActual === 'bajo') lista = lista.filter(p => parseInt(p.stock) < 6);
+  if (filtroActual === 'todos') lista = lista.filter(p => p.activo === 'true' || p.activo === true);
+  else if (filtroActual === 'Perifericos') lista = lista.filter(p => p.categoria === 'Perifericos' && (p.activo === 'true' || p.activo === true));
+  else if (filtroActual === 'Samsung') lista = lista.filter(p => p.marca === 'Samsung' && (p.activo === 'true' || p.activo === true));
+  else if (filtroActual === 'bajo') lista = lista.filter(p => parseInt(p.stock) < 6 && (p.activo === 'true' || p.activo === true));
+  else if (filtroActual === 'discontinuados') lista = lista.filter(p => p.activo === 'false' || p.activo === false);
   
   if (terminoBusqueda) {
     const t = terminoBusqueda.toLowerCase();
@@ -121,14 +132,15 @@ function renderTabla(lista) {
   const puedeBorrar = usuarioActual && usuarioActual.rol === 'ADMIN';
   
   tb.innerHTML = lista.map(p => `
-    <tr>
+    <tr style="${(p.activo === 'false' || p.activo === false) ? 'opacity:0.5' : ''}">
       <td><div class="pname">${p.nombre}</div><div class="pmarca">${p.marca}</div></td>
       <td><span class="cat">${p.categoria}</span></td>
       <td><span class="price">$${Math.round(p.precio / 1000)}k</span></td>
       <td><span class="${parseInt(p.stock) < 6 ? 'slow' : 'sok'}">${p.stock} u.</span></td>
       <td>
-        ${puedeEditar ? `<button class="abtn edit" onclick="abrirEditar('${p.id}')">editar</button>` : ''}
-        ${puedeBorrar ? `<button class="abtn del" onclick="eliminar('${p.id}')">borrar</button>` : ''}
+        ${(p.activo === 'true' || p.activo === true) && puedeEditar ? `<button class="abtn edit" onclick="abrirEditar('${p.id}')">editar</button>` : ''}
+        ${(p.activo === 'true' || p.activo === true) && puedeBorrar ? `<button class="abtn del" onclick="eliminar('${p.id}')">borrar</button>` : ''}
+        ${(p.activo === 'false' || p.activo === false) ? `<span style="font-size:11px;color:#888">discontinuado</span>` : ''}
       </td>
     </tr>
   `).join('');
@@ -136,11 +148,15 @@ function renderTabla(lista) {
 }
 
 function actualizarStats() {
-  document.getElementById('st-total').textContent = todos.length;
-  document.getElementById('st-stock').textContent = todos.reduce((a, p) => a + parseInt(p.stock), 0);
-  const avg = todos.length ? todos.reduce((a, p) => a + parseInt(p.precio), 0) / todos.length : 0;
+  const activos = todos.filter(p => p.activo === 'true' || p.activo === true);
+  const discontinuados = todos.filter(p => p.activo === 'false' || p.activo === false);
+  
+  document.getElementById('st-activos').textContent = activos.length;
+  document.getElementById('st-disc-sub').textContent = discontinuados.length + ' discontinuado';
+  document.getElementById('st-stock').textContent = activos.reduce((a, p) => a + parseInt(p.stock), 0);
+  const avg = activos.length ? activos.reduce((a, p) => a + parseInt(p.precio), 0) / activos.length : 0;
   document.getElementById('st-avg').textContent = '$' + Math.round(avg / 1000) + 'k';
-  document.getElementById('st-low').textContent = todos.filter(p => parseInt(p.stock) < 6).length;
+  document.getElementById('st-low').textContent = activos.filter(p => parseInt(p.stock) < 6).length;
 }
 
 function log(tipo, texto) {
@@ -181,6 +197,8 @@ function abrirEditar(id) {
   editId = id;
   const p = todos.find(x => x.id == id);
   document.getElementById('m-nombre').value = p.nombre;
+  document.getElementById('m-cat').value = p.categoria;
+  document.getElementById('m-marca').value = p.marca;
   document.getElementById('m-precio').value = p.precio;
   document.getElementById('m-stock').value = p.stock;
   document.getElementById('modal').style.display = 'flex';
@@ -208,6 +226,8 @@ function showConfirm(titulo, mensaje, onConfirm) {
 async function guardarEdicion() {
   const p = todos.find(x => x.id == editId);
   const nombre = document.getElementById('m-nombre').value;
+  const categoria = document.getElementById('m-cat').value;
+  const marca = document.getElementById('m-marca').value;
   const precio = document.getElementById('m-precio').value;
   const stock = document.getElementById('m-stock').value;
   
@@ -215,7 +235,7 @@ async function guardarEdicion() {
     await fetch('/api/productos/' + editId, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json', ...authHeader()},
-      body: JSON.stringify({nombre, categoria: p.categoria, marca: p.marca, precio, stock})
+      body: JSON.stringify({nombre, categoria, marca, precio, stock})
     });
     log('update', 'UPDATE · ' + nombre);
     cerrarModal();

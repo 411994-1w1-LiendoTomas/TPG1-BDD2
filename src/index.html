@@ -68,7 +68,7 @@ tr:hover td{background:#fafafa}
 .modal{background:#fff;border-radius:12px;border:1px solid #e8e8e8;padding:1.5rem;width:360px;max-width:90vw}
 .modal h3{font-size:15px;font-weight:500;margin-bottom:1rem}
 .modal label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-family:monospace}
-.modal input{width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;margin-bottom:10px;outline:none}
+.modal input,.modal select{width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;margin-bottom:10px;outline:none}
 .mbtns{display:flex;gap:8px;margin-top:.5rem}
 .btn-cancel{flex:1;padding:8px;background:transparent;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
 
@@ -126,7 +126,12 @@ tr:hover td{background:#fafafa}
   </div>
 
   <div class="stats" id="stats-section">
-    <div class="stat"><div class="stat-label">productos</div><div class="stat-val" id="st-total">-</div><div class="stat-sub">en catálogo</div></div>
+    <div class="stat">
+      <div class="stat-label">productos</div>
+      <div class="stat-val" id="st-activos">-</div>
+      <div class="stat-sub" id="st-discontinuados-sub">en catálogo</div>
+      <div class="stat-sub" id="st-disc-sub" style="color:#888">- discontinuado</div>
+    </div>
     <div class="stat"><div class="stat-label">stock total</div><div class="stat-val" id="st-stock">-</div><div class="stat-sub">unidades</div></div>
     <div class="stat"><div class="stat-label">precio prom.</div><div class="stat-val" id="st-avg">-</div><div class="stat-sub">por producto</div></div>
     <div class="stat"><div class="stat-label">stock bajo</div><div class="stat-val" id="st-low" style="color:#ef4444">-</div><div class="stat-sub">requieren reposición</div></div>
@@ -152,6 +157,7 @@ tr:hover td{background:#fafafa}
         <button class="fbtn" onclick="filtrar('Perifericos',this)">Periféricos</button>
         <button class="fbtn" onclick="filtrar('Samsung',this)">Samsung</button>
         <button class="fbtn" onclick="filtrar('bajo',this)">Stock bajo</button>
+        <button class="fbtn" onclick="filtrar('discontinuados',this)">Discontinuados</button>
       </div>
       <table>
         <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
@@ -180,8 +186,10 @@ tr:hover td{background:#fafafa}
       <div class="card" id="reportes-card" style="display:none">
         <div class="card-head"><span class="card-title">Reportes</span></div>
         <div class="form">
-          <div class="stat-label">Total productos</div>
-          <div class="stat-val" id="rep-total">-</div>
+          <div class="stat-label">Productos activos</div>
+          <div class="stat-val" id="rep-activos">-</div>
+          <div class="stat-label" style="margin-top:10px">Productos discontinuados</div>
+          <div class="stat-val" id="rep-disc">-</div>
           <div class="stat-label" style="margin-top:10px">Stock total</div>
           <div class="stat-val" id="rep-stock">-</div>
           <div class="stat-label" style="margin-top:10px">Valor total</div>
@@ -203,6 +211,13 @@ tr:hover td{background:#fafafa}
   <div class="modal">
     <h3>Editar producto</h3>
     <label>Nombre</label><input type="text" id="m-nombre">
+    <label>Categoría</label>
+    <select id="m-cat">
+      <option>Notebooks</option><option>Celulares</option><option>Audio</option>
+      <option>Perifericos</option><option>Televisores</option><option>Tablets</option>
+      <option>Monitores</option><option>Almacenamiento</option>
+    </select>
+    <label>Marca</label><input type="text" id="m-marca">
     <label>Precio</label><input type="number" id="m-precio">
     <label>Stock</label><input type="number" id="m-stock">
     <div class="mbtns">
