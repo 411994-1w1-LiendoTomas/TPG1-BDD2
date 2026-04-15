@@ -195,7 +195,7 @@ async function cargarLogs() {
 function aplicarFiltro() {
   let lista = todos;
   
-  if      (filtroActual === 'todos')         lista = lista.filter(esActivo);
+  if      (filtroActual === 'todos')         lista = lista; // muestra todos: activos + discontinuados
   else if (filtroActual === 'Perifericos')   lista = lista.filter(p => p.categoria === 'Perifericos' && esActivo(p));
   else if (filtroActual === 'Samsung')       lista = lista.filter(p => p.marca === 'Samsung' && esActivo(p));
   else if (filtroActual === 'bajo')          lista = lista.filter(p => parseInt(p.stock) < 6 && esActivo(p));
@@ -285,7 +285,7 @@ function log(tipo, texto) {
 
 /** Agrega un producto nuevo. Valida campos antes de enviar al backend. */
 async function agregarProducto() {
-  if (!usuarioActual || usuarioActual.rol !== 'ADMIN') return;
+  if (!usuarioActual || (usuarioActual.rol !== 'ADMIN' && usuarioActual.rol !== 'MANAGER')) return;
   const nombre = document.getElementById('f-nombre').value.trim();
   const cat    = document.getElementById('f-cat').value;
   const marca  = document.getElementById('f-marca').value.trim();
