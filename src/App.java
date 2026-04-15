@@ -1,7 +1,10 @@
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpExchange;
 import redis.clients.jedis.Jedis;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import java.io.*;
+import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.*;
 
@@ -150,7 +153,7 @@ public class App {
                 int stock  = Math.max(0, parseSafe(p.getOrDefault("stock",  "0")));
                 int precio = Math.max(0, parseSafe(p.getOrDefault("precio", "0")));
                 stockTotal += stock;
-                valorTotal += precio;
+                valorTotal += precio * stock;
                 if (stock < 6) stockBajo++;
                 String cat = p.getOrDefault("categoria", "Sin categoria");
                 categorias.put(cat, categorias.getOrDefault(cat, 0) + 1);
@@ -312,7 +315,7 @@ public class App {
             if (s < 0)     { respond(ex, 400, "{\"error\":\"Stock no puede ser negativo\"}");    return; }
             if (s > 10000) { respond(ex, 400, "{\"error\":\"Stock máximo permitido: 10000\"}"); return; }
         }
-        if (data.containsKey("nombre") && data.get("nombre").trim().isEmpty()) {
+        if (data.containsKey("nombre") && (data.get("nombre") == null || data.get("nombre").trim().isEmpty())) {
             respond(ex, 400, "{\"error\":\"El nombre no puede estar vacío\"}"); return;
         }
         // Excluir campo 'activo' del PUT (se maneja solo con DELETE)
@@ -424,15 +427,26 @@ public class App {
             return;
         }
         System.out.println("Cargando datos iniciales...");
-        insertarProducto("Notebook Lenovo IdeaPad 3", "Notebooks", "Lenovo", "800000", "5");
-        insertarProducto("Samsung Galaxy S23", "Celulares", "Samsung", "1200000", "8");
-        insertarProducto("Auriculares Bluetooth Sony", "Audio", "Sony", "50000", "15");
-        insertarProducto("Mouse Gamer Logitech", "Perifericos", "Logitech", "25000", "20");
-        insertarProducto("Smart TV LG 50 pulgadas", "Televisores", "LG", "600000", "4");
-        insertarProducto("Teclado Mecanico Redragon", "Perifericos", "Redragon", "70000", "10");
-        insertarProducto("Tablet Samsung Galaxy Tab A8", "Tablets", "Samsung", "300000", "7");
-        insertarProducto("Monitor LG 24 pulgadas", "Monitores", "LG", "200000", "6");
-        System.out.println("8 productos cargados.");
+        insertarProducto("Notebook Lenovo IdeaPad 3",      "Notebooks",    "Lenovo",   "800000",  "5");
+        insertarProducto("Samsung Galaxy S23",              "Celulares",    "Samsung",  "1200000", "8");
+        insertarProducto("Auriculares Bluetooth Sony",      "Audio",        "Sony",     "50000",   "15");
+        insertarProducto("Mouse Gamer Logitech",            "Perifericos",  "Logitech", "25000",   "20");
+        insertarProducto("Smart TV LG 50 pulgadas",         "Televisores",  "LG",       "600000",  "4");
+        insertarProducto("Teclado Mecanico Redragon",       "Perifericos",  "Redragon", "70000",   "10");
+        insertarProducto("Tablet Samsung Galaxy Tab A8",    "Tablets",      "Samsung",  "300000",  "7");
+        insertarProducto("Monitor LG 24 pulgadas",          "Monitores",    "LG",       "200000",  "6");
+        // Productos adicionales
+        insertarProducto("HP Pavilion 15",                  "Notebooks",    "HP",       "950000",  "6");
+        insertarProducto("Dell Inspiron 14",                "Notebooks",    "Dell",     "880000",  "4");
+        insertarProducto("Xiaomi Redmi Note 12",            "Celulares",    "Xiaomi",   "450000",  "12");
+        insertarProducto("Motorola Moto G84",               "Celulares",    "Motorola", "520000",  "5");
+        insertarProducto("Parlante JBL Flip 6",             "Audio",        "JBL",      "180000",  "9");
+        insertarProducto("Auriculares JBL Tune 510",        "Audio",        "JBL",      "70000",   "14");
+        insertarProducto("Mouse Logitech G203",             "Perifericos",  "Logitech", "35000",   "18");
+        insertarProducto("Teclado HyperX Alloy Core",       "Perifericos",  "HyperX",   "90000",   "8");
+        insertarProducto("Smart TV Samsung 55 pulgadas",    "Televisores",  "Samsung",  "900000",  "3");
+        insertarProducto("Monitor Samsung 27 pulgadas",     "Monitores",    "Samsung",  "260000",  "7");
+        System.out.println("18 productos cargados.");
     }
 
     static void cargarUsuariosIniciales() {
@@ -463,27 +477,29 @@ public class App {
 
     static String toJson(String key, Map<String, String> p) {
         String id = key.split(":")[1];
+        int precio = Math.max(0, parseSafe(p.getOrDefault("precio", "0")));
+        int stock  = Math.max(0, parseSafe(p.getOrDefault("stock",  "0")));
         return "{\"id\":\"" + id + "\"," +
-                "\"nombre\":\"" + esc(p.getOrDefault("nombre", "")) + "\"," +
+                "\"nombre\":\""   + esc(p.getOrDefault("nombre",    "")) + "\"," +
                 "\"categoria\":\"" + esc(p.getOrDefault("categoria", "")) + "\"," +
-                "\"marca\":\"" + esc(p.getOrDefault("marca", "")) + "\"," +
-                "\"precio\":" + p.getOrDefault("precio", "0") + "," +
-                "\"stock\":" + p.getOrDefault("stock", "0") + "," +
-                "\"activo\":\"" + p.getOrDefault("activo", "true") + "\"}";
+                "\"marca\":\""    + esc(p.getOrDefault("marca",     "")) + "\"," +
+                "\"precio\":"     + precio + "," +
+                "\"stock\":"      + stock  + "," +
+                "\"activo\":\""   + p.getOrDefault("activo", "true") + "\"}";
     }
 
+    static final Gson GSON = new Gson();
+    static final Type MAP_TYPE = new TypeToken<Map<String, String>>(){}.getType();
+
     static Map<String, String> parseJson(String json) {
-        Map<String, String> map = new HashMap<>();
-        json = json.trim().replaceAll("[{}]", "");
-        for (String pair : json.split(",")) {
-            String[] kv = pair.split(":", 2);
-            if (kv.length == 2) {
-                String k = kv[0].trim().replaceAll("\"", "");
-                String v = kv[1].trim().replaceAll("\"", "");
-                map.put(k, v);
-            }
+        if (json == null || json.trim().isEmpty()) return new HashMap<>();
+        try {
+            Map<String, String> result = GSON.fromJson(json.trim(), MAP_TYPE);
+            return result != null ? result : new HashMap<>();
+        } catch (Exception e) {
+            log("WARN", "parseJson falló: " + e.getMessage());
+            return new HashMap<>();
         }
-        return map;
     }
 
     static String esc(String s) {
