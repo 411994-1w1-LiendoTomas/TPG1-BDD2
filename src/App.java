@@ -11,9 +11,19 @@ import java.util.*;
 public class App {
 
     static Jedis jedis = new Jedis("localhost", 6379);
-    // ID autoincrementado gestionado por Redis (INCR seq:producto) — thread-safe y persistente.
 
-    /** Log de debug con timestamp. Prefija [TiendaTech] para filtrar fácil en consola. */
+    static final Map<String, String[]> ATTRIBUTES = Map.of(
+        "Notebooks",      new String[]{"procesador", "ram", "almacenamiento"},
+        "Celulares",      new String[]{"bateria", "sistema", "pulgadas"},
+        "Audio",          new String[]{"tipo", "conectividad", "respuestaFrecuencia"},
+        "Perifericos",    new String[]{"tipo", "conectividad", "dpi"},
+        "Televisores",    new String[]{"pulgadas", "resolucion", "smartTV"},
+        "Tablets",        new String[]{"bateria", "sistema", "pulgadas"},
+        "Monitores",      new String[]{"pulgadas", "resolucion", "panel"},
+        "Almacenamiento", new String[]{"capacidad", "tipo", "conectividad"}
+    );
+
+    /** Log de debug con timestamp. */
     static void log(String nivel, String msg) {
         System.out.printf("[TiendaTech][%s] %s%n", nivel, msg);
     }
@@ -28,6 +38,7 @@ public class App {
         server.createContext("/api/reportes",  App::handleReportes);
         server.createContext("/api/logs",      App::handleLogs);
         server.createContext("/api/reactivar", App::handleReactivar);
+        server.createContext("/api/atributos", App::handleAtributos);
         server.createContext("/app.js",        App::handleJs);
         server.createContext("/",              App::handleStatic);
         server.start();
@@ -285,13 +296,15 @@ public class App {
         if (stockInt > 10000) {
             respond(ex, 400, "{\"error\":\"Stock máximo permitido: 10000\"}"); return;
         }
-        String key = "producto:" + jedis.incr("seq:producto"); // ID atómico desde Redis
+        String key = "producto:" + jedis.incr("seq:producto");
         jedis.hset(key, "nombre",    nombre);
         jedis.hset(key, "categoria", data.getOrDefault("categoria", ""));
         jedis.hset(key, "marca",     marca);
         jedis.hset(key, "precio",    String.valueOf(precioInt));
         jedis.hset(key, "stock",     String.valueOf(stockInt));
-        jedis.hset(key, "activo",    "true"); // siempre inicializar explicitamente
+        jedis.hset(key, "activo",     "true");
+        String atributos = data.getOrDefault("atributos", "{}");
+        jedis.hset(key, "atributos", atributos);
         jedis.sadd("productos:activos", key);
         registrarLog("CREATE", nombre, getUsername(ex));
         log("INFO", "POST producto: " + key + " | " + nombre);
@@ -436,8 +449,10 @@ public class App {
             String body = new String(ex.getRequestBody().readAllBytes(), "UTF-8");
             Map<String, String> data = parseJson(body);
             String stock = data.getOrDefault("stock", "1");
+            String atributos = data.getOrDefault("atributos", jedis.hget(key, "atributos"));
             jedis.hset(key, "activo", "true");
             jedis.hset(key, "stock", stock);
+            jedis.hset(key, "atributos", atributos != null ? atributos : "{}");
             jedis.sadd("productos:activos", key);
             String nombre = jedis.hget(key, "nombre");
             registrarLog("REACTIVATE", nombre != null ? nombre : key, getUsername(ex));
@@ -448,10 +463,32 @@ public class App {
         }
     }
 
+    static void handleAtributos(HttpExchange ex) throws IOException {
+        addCors(ex);
+        if (ex.getRequestMethod().equals("OPTIONS")) {
+            ex.sendResponseHeaders(204, -1); return;
+        }
+        if (!ex.getRequestMethod().equals("GET")) {
+            respond(ex, 405, "{\"error\":\"Método no permitido\"}"); return;
+        }
+        String path = ex.getRequestURI().getPath();
+        String cat = path.replace("/api/atributos/", "");
+        String[] attrs = ATTRIBUTES.get(cat);
+        if (attrs == null) {
+            respond(ex, 404, "{\"error\":\"Categoría no encontrada\"}"); return;
+        }
+        StringBuilder sb = new StringBuilder("{\"categoria\":\"" + esc(cat) + "\",\"atributos\":[");
+        for (int i = 0; i < attrs.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append("\"").append(attrs[i]).append("\"");
+        }
+        sb.append("]}");
+        respond(ex, 200, sb.toString());
+    }
+
     static void cargarDatosIniciales() {
         if (!jedis.keys("producto:*").isEmpty()) {
             System.out.println("Base de datos ya tiene datos, no se recarga.");
-            // Migración: inicializar seq:producto en Redis si aún no existe
             if (!jedis.exists("seq:producto")) {
                 long maxId = 0;
                 for (String k : jedis.keys("producto:*")) {
@@ -462,6 +499,15 @@ public class App {
                 }
                 jedis.set("seq:producto", String.valueOf(maxId));
                 System.out.println("[TiendaTech] seq:producto inicializado en " + maxId);
+            }
+            if (!jedis.exists("migracion:atributos")) {
+                for (String k : jedis.keys("producto:*")) {
+                    if (!jedis.hexists(k, "atributos")) {
+                        jedis.hset(k, "atributos", "{}");
+                    }
+                }
+                jedis.set("migracion:atributos", "true");
+                System.out.println("[TiendaTech] Campo atributos agregado a productos existentes.");
             }
             return;
         }
@@ -504,13 +550,14 @@ public class App {
     }
 
     static void insertarProducto(String nombre, String cat, String marca, String precio, String stock) {
-        String key = "producto:" + jedis.incr("seq:producto"); // ID atómico desde Redis
+        String key = "producto:" + jedis.incr("seq:producto");
         jedis.hset(key, "nombre", nombre);
         jedis.hset(key, "categoria", cat);
         jedis.hset(key, "marca", marca);
         jedis.hset(key, "precio", precio);
         jedis.hset(key, "stock", stock);
         jedis.hset(key, "activo", "true");
+        jedis.hset(key, "atributos", "{}");
         jedis.sadd("productos:activos", key);
     }
 
@@ -518,13 +565,15 @@ public class App {
         String id = key.split(":")[1];
         int precio = Math.max(0, parseSafe(p.getOrDefault("precio", "0")));
         int stock  = Math.max(0, parseSafe(p.getOrDefault("stock",  "0")));
+        String atributos = p.getOrDefault("atributos", "{}");
         return "{\"id\":\"" + id + "\"," +
                 "\"nombre\":\""   + esc(p.getOrDefault("nombre",    "")) + "\"," +
                 "\"categoria\":\"" + esc(p.getOrDefault("categoria", "")) + "\"," +
                 "\"marca\":\""    + esc(p.getOrDefault("marca",     "")) + "\"," +
                 "\"precio\":"     + precio + "," +
                 "\"stock\":"      + stock  + "," +
-                "\"activo\":\""   + p.getOrDefault("activo", "true") + "\"}";
+                "\"activo\":\""   + p.getOrDefault("activo", "true") + "\"," +
+                "\"atributos\":"  + atributos + "}";
     }
 
     static final Gson GSON = new Gson();

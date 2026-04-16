@@ -285,6 +285,7 @@ function renderTabla(lista) {
       <td><span class="price">$${Math.round((parseInt(p.precio) || 0) / 1000)}k</span></td>
       <td><span class="${parseInt(p.stock) < 6 ? 'slow' : 'sok'}">${p.stock} u.</span></td>
       <td>
+        ${esActivo(p) ? `<button class="abtn" onclick="abrirVer('${p.id}')">ver</button>` : ''}
         ${esActivo(p) && puedeEditar ? `<button class="abtn edit" onclick="abrirEditar('${p.id}')">editar</button>` : ''}
         ${esActivo(p) && puedeBorrar ? `<button class="abtn del" onclick="eliminar('${p.id}')">borrar</button>` : ''}
         ${esInactivo(p) && puedeBorrar ? `<button class="abtn" onclick="abrirReactivar('${p.id}')" style="color:#22c55e">reactivar</button>` : ''}
@@ -318,7 +319,30 @@ function log(tipo, texto) {
   if (ops.children.length > 6) ops.removeChild(ops.lastChild);
 }
 
-/** Agrega un producto nuevo. Valida campos antes de enviar al backend. */
+async function cargarAtributosForm(formPrefix) {
+  const cat = document.getElementById(formPrefix + '-cat').value;
+  const container = document.getElementById(formPrefix + '-atributos-container');
+  container.innerHTML = '';
+  
+  if (!cat) return;
+  
+  try {
+    const r = await fetch('/api/atributos/' + encodeURIComponent(cat));
+    if (r.ok) {
+      const data = await r.json();
+      for (const attr of data.atributos) {
+        const div = document.createElement('div');
+        div.innerHTML = `<label style="display:block;font-size:12px;color:#888;margin-bottom:4px;margin-top:8px;text-transform:capitalize">${attr}</label>
+          <input type="text" id="${formPrefix}-attr-${attr}" placeholder="${attr}" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;outline:none">`;
+        container.appendChild(div);
+      }
+    }
+  } catch(e) {
+    console.error('Error cargando atributos:', e);
+  }
+}
+
+  /** Agrega un producto nuevo. Valida campos antes de enviar al backend. */
 async function agregarProducto() {
   if (!usuarioActual || (usuarioActual.rol !== 'ADMIN' && usuarioActual.rol !== 'MANAGER')) return;
   const nombre = document.getElementById('f-nombre').value.trim();
@@ -330,6 +354,7 @@ async function agregarProducto() {
   clearFieldErrors('f-nombre', 'f-marca', 'f-precio', 'f-stock');
   let hasError = false;
   if (!nombre) { showFieldError('f-nombre', 'Requerido'); hasError = true; }
+  if (!cat)    { showFieldError('f-cat',     'Requerido'); hasError = true; }
   if (!marca)  { showFieldError('f-marca',  'Requerido'); hasError = true; }
   if (!precio || isNaN(Number(precio))) { showFieldError('f-precio', 'Debe ser un número'); hasError = true; }
   else if (Number(precio) <= 0)         { showFieldError('f-precio', 'Debe ser mayor a 0'); hasError = true; }
@@ -339,11 +364,22 @@ async function agregarProducto() {
   const btn = document.querySelector('#agregar-card .btn-primary');
   btn.textContent = 'Guardando...';
   btn.disabled = true;
+  
+  const atributos = {};
+  const container = document.getElementById('f-atributos-container');
+  if (container) {
+    const inputs = container.querySelectorAll('input[id^="f-attr-"]');
+    inputs.forEach(input => {
+      const attr = input.id.replace('f-attr-', '');
+      atributos[attr] = input.value;
+    });
+  }
+  
   try {
     const res = await fetch('/api/productos', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', ...authHeader()},
-      body: JSON.stringify({nombre, categoria: cat, marca, precio, stock})
+      body: JSON.stringify({nombre, categoria: cat, marca, precio, stock, atributos: JSON.stringify(atributos)})
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -354,6 +390,7 @@ async function agregarProducto() {
     document.getElementById('f-marca').value  = '';
     document.getElementById('f-precio').value = '';
     document.getElementById('f-stock').value  = '';
+    document.getElementById('f-atributos-container').innerHTML = '';
     await cargar();
   } catch (e) {
     showConfirm('Error de red', 'No se pudo conectar con el servidor', function() {});
@@ -364,7 +401,7 @@ async function agregarProducto() {
 }
 
 /** Abre el modal de edición con los datos del producto. */
-function abrirEditar(id) {
+async function abrirEditar(id) {
   const p = todos.find(x => x.id == id);
   if (!p) { console.warn('abrirEditar: producto no encontrado en memoria, id=', id); return; }
   editId = id;
@@ -374,6 +411,33 @@ function abrirEditar(id) {
   document.getElementById('m-precio').value = p.precio;
   document.getElementById('m-stock').value  = p.stock;
   document.getElementById('modal').style.display = 'flex';
+  
+  let prodAtributos = {};
+  try { prodAtributos = (typeof p.atributos === 'string') ? JSON.parse(p.atributos) : p.atributos; } catch(e) {}
+  const container = document.getElementById('atributos-container');
+  container.innerHTML = '<div style="color:#888;font-size:12px">Cargando atributos...</div>';
+  
+  try {
+    const url = '/api/atributos/' + encodeURIComponent(p.categoria);
+    console.log('Categorías:', p.categoria, 'URL:', url);
+    const r = await fetch(url);
+    console.log('Response status:', r.status);
+    if (r.ok) {
+      const data = await r.json();
+      console.log('Data recibida:', data);
+      container.innerHTML = '';
+      for (const attr of data.atributos) {
+        const valor = prodAtributos[attr] || '';
+        container.innerHTML += `<label style="display:block;font-size:12px;color:#888;margin-bottom:4px;margin-top:8px;text-transform:capitalize">${attr}</label>
+          <input type="text" id="m-attr-${attr}" value="${valor}" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;color:#111;font-family:inherit;outline:none;margin-bottom:8px">`;
+      }
+    } else {
+      container.innerHTML = '<div style="color:red;font-size:12px">Error: categoría no encontrada</div>';
+    }
+  } catch (e) {
+    console.error('Error cargando atributos:', e);
+    container.innerHTML = '<div style="color:red;font-size:12px">Error: ' + e.message + '</div>';
+  }
 }
 
 function cerrarModal() {
@@ -412,6 +476,40 @@ async function confirmarReactivar() {
   
   cerrarReactivar();
   await cargar();
+}
+
+function cerrarVer() {
+  document.getElementById('ver-overlay').style.display = 'none';
+}
+
+async function abrirVer(id) {
+  const p = todos.find(x => x.id == id);
+  document.getElementById('ver-nombre').textContent = p.nombre + ' - ' + p.marca;
+  
+  let atributosHtml = '<div style="font-size:13px;color:#666">Sin atributos cargados</div>';
+  
+  try {
+    const r = await fetch('/api/atributos/' + encodeURIComponent(p.categoria));
+    if (r.ok) {
+      const data = await r.json();
+  const prodAtributos = (typeof p.atributos === 'string') ? JSON.parse(p.atributos || '{}') : (p.atributos || {});
+      const nombresAtributos = data.atributos;
+      
+      atributosHtml = '';
+      for (const attr of nombresAtributos) {
+        const valor = prodAtributos[attr] || '-';
+        atributosHtml += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0">
+          <span style="color:#888;font-size:12px;text-transform:capitalize">${attr}:</span>
+          <span style="font-size:13px;font-weight:500">${valor}</span>
+        </div>`;
+      }
+    }
+  } catch (e) {
+    console.error('Error cargando atributos:', e);
+  }
+  
+  document.getElementById('ver-atributos').innerHTML = atributosHtml;
+  document.getElementById('ver-overlay').style.display = 'flex';
 }
 
 function showConfirm(titulo, mensaje, onConfirm) {
@@ -454,10 +552,20 @@ async function guardarEdicion() {
     saveBtn.textContent = 'Guardando...';
     saveBtn.disabled = true;
     try {
+      const atributos = {};
+      const container = document.getElementById('atributos-container');
+      if (container) {
+        const inputs = container.querySelectorAll('input[id^="m-attr-"]');
+        inputs.forEach(input => {
+          const attr = input.id.replace('m-attr-', '');
+          atributos[attr] = input.value;
+        });
+      }
+      
       const res = await fetch('/api/productos/' + idParaEditar, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json', ...authHeader()},
-        body: JSON.stringify({nombre, categoria, marca, precio, stock})
+        body: JSON.stringify({nombre, categoria, marca, precio, stock, atributos: JSON.stringify(atributos)})
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

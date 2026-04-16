@@ -172,14 +172,21 @@ tr:hover td{background:#fafafa}
         <div class="form">
           <label>Nombre</label><input type="text" id="f-nombre" placeholder="Ej: Notebook HP...">
           <label>Categoría</label>
-          <select id="f-cat">
-            <option>Notebooks</option><option>Celulares</option><option>Audio</option>
-            <option>Perifericos</option><option>Televisores</option><option>Tablets</option>
-            <option>Monitores</option><option>Almacenamiento</option>
+          <select id="f-cat" onchange="cargarAtributosForm('f')">
+            <option value="">Seleccionar categoría</option>
+            <option value="Almacenamiento">Almacenamiento</option>
+            <option value="Audio">Audio</option>
+            <option value="Celulares">Celulares</option>
+            <option value="Monitores">Monitores</option>
+            <option value="Notebooks">Notebooks</option>
+            <option value="Perifericos">Periféricos</option>
+            <option value="Tablets">Tablets</option>
+            <option value="Televisores">Televisores</option>
           </select>
           <label>Marca</label><input type="text" id="f-marca" placeholder="Ej: HP">
           <label>Precio ($)</label><input type="number" id="f-precio" placeholder="150000">
           <label>Stock</label><input type="number" id="f-stock" placeholder="10">
+          <div id="f-atributos-container" style="margin-top:10px"></div>
           <button class="btn-primary" onclick="agregarProducto()">Agregar producto</button>
         </div>
       </div>
@@ -218,13 +225,19 @@ tr:hover td{background:#fafafa}
     <label>Nombre</label><input type="text" id="m-nombre">
     <label>Categoría</label>
     <select id="m-cat">
-      <option>Notebooks</option><option>Celulares</option><option>Audio</option>
-      <option>Perifericos</option><option>Televisores</option><option>Tablets</option>
-      <option>Monitores</option><option>Almacenamiento</option>
+      <option value="Almacenamiento">Almacenamiento</option>
+      <option value="Audio">Audio</option>
+      <option value="Celulares">Celulares</option>
+      <option value="Monitores">Monitores</option>
+      <option value="Notebooks">Notebooks</option>
+      <option value="Perifericos">Periféricos</option>
+      <option value="Tablets">Tablets</option>
+      <option value="Televisores">Televisores</option>
     </select>
     <label>Marca</label><input type="text" id="m-marca">
     <label>Precio</label><input type="number" id="m-precio">
     <label>Stock</label><input type="number" id="m-stock">
+    <div id="atributos-container" style="margin-top:10px"></div>
     <div class="mbtns">
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
       <button class="btn-primary" style="flex:1" onclick="guardarEdicion()">Guardar</button>
@@ -253,6 +266,17 @@ tr:hover td{background:#fafafa}
     <div class="mbtns">
       <button class="btn-cancel" onclick="cerrarReactivar()">Cancelar</button>
       <button class="btn-primary" style="flex:1" onclick="confirmarReactivar()">Reactivar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ver-overlay">
+  <div class="modal">
+    <h3>Atributos del producto</h3>
+    <div id="ver-nombre" style="font-weight:500;margin-bottom:10px"></div>
+    <div id="ver-atributos"></div>
+    <div class="mbtns" style="margin-top:15px">
+      <button class="btn-primary" style="flex:1" onclick="cerrarVer()">Cerrar</button>
     </div>
   </div>
 </div>
