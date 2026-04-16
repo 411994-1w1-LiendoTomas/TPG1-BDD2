@@ -2,9 +2,9 @@
 
 ## Integrantes
 
-Franco del Giudice - 412427
-Tomás Agustín Liendo - 411994
-Manuel Marquez - 412569
+Franco del Giudice - 412427,
+Tomás Agustín Liendo - 411994,
+Manuel Marquez - 412569,
 Federico Navarrete - 412090
 
 # TiendaTech - Gestión de Inventario
