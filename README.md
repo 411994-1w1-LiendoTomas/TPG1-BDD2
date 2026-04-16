@@ -1,3 +1,12 @@
+# Tecnicatura Universitaria en Programación - Bases de Datos II - Trabajo Práctico Grupal N°1
+
+## Integrantes
+
+# Franco del Giudice   - 412427
+# Tomás Agustín Liendo - 411994
+# Manuel Marquez       - 412569
+# Federico Navarrete   - 412090
+
 # TiendaTech - Gestión de Inventario
 
 Sistema de gestión de inventario para una tienda de tecnología, desarrollado como trabajo práctico de la materia **Bases de Datos II**.
@@ -8,13 +17,13 @@ TiendaTech permite administrar el catálogo de productos de una tienda de tecnol
 
 ## Tecnologías
 
-| Componente | Tecnología |
-|------------|------------|
-| Backend | Java (JDK 11+) con HttpServer embebido |
-| Base de datos | Redis |
-| Frontend | HTML5, CSS3, JavaScript (Vanilla) |
-| API | REST (JSON over HTTP) |
-| Cliente Redis | Jedis |
+| Componente    | Tecnología                             |
+|---------------|----------------------------------------|
+| Backend       | Java (JDK 11+) con HttpServer embebido |
+| Base de datos | Redis                                  |
+| Frontend      | HTML5, CSS3, JavaScript (Vanilla)      |
+| API           | REST (JSON over HTTP)                  |
+| Cliente Redis | Jedis                                  |
 
 ## Funcionalidades
 
@@ -30,11 +39,11 @@ TiendaTech permite administrar el catálogo de productos de una tienda de tecnol
 
 ### Sistema de Usuarios y Permisos
 
-| Rol | Permisos |
-|-----|----------|
-| **ADMIN** | Ver, agregar, editar, eliminar y reactivar productos. Ver reportes y logs. |
-| **MANAGER** | Ver, agregar, editar productos. |
-| **EMPLOYEE** | Solo ver productos. |
+| Rol          | Permisos                                                       |
+|--------------|----------------------------------------------------------------|
+| **ADMIN**    | Ver, agregar, editar, eliminar productos. Ver reportes y logs. |
+| **MANAGER**  | Ver, agregar, editar productos.                                |
+| **EMPLOYEE** | Solo ver productos.                                            |
 
 ### Reportes (solo ADMIN)
 - Total de productos activos y discontinuados
@@ -49,11 +58,11 @@ TiendaTech permite administrar el catálogo de productos de una tienda de tecnol
 
 ## Usuarios precargados
 
-| Usuario | Contraseña | Rol |
-|---------|------------|-----|
-| admin | admin123 | ADMIN |
-| manager | manager123 | MANAGER |
-| employee | employee123 | EMPLOYEE |
+| Usuario  | Contraseña   | Rol       |
+|----------|--------------|-----------|
+| admin    | admin123     | ADMIN     |
+| manager  | manager123   | MANAGER   |
+| employee | employee123  | EMPLOYEE  |
 
 ## Requisitos
 
@@ -117,10 +126,6 @@ Set: productos:activos (keys de productos activos)
 Key: usuario:{username}
 Campos: password, rol
 ```
-
-## Autores
-
-Desarrollado como parte del trabajo práctico de Bases de Datos II.
 
 ## Licencia
 
