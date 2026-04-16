@@ -5,6 +5,7 @@ let usuarioActual = null;
 let terminoBusqueda = '';
 let ordenActual = 'id';
 let loginEnProgreso = false; // guard contra doble submit
+let categoriaSeleccionada = '';
 
 /** Devuelve true si un producto está activo. Centraliza la comparación para evitar duplicación. */
 function esActivo(p)  { return p.activo === 'true'  || p.activo === true; }
@@ -108,23 +109,26 @@ function aplicarPermisos(rol) {
 
 /** Carga todos los productos (activos + discontinuados) desde la API. */
 async function cargar() {
+  const filtroGuardado = filtroActual;
+  const catGuardada = categoriaSeleccionada;
   todos = [];
-  filtroActual = 'todos'; // BUGFIX: era 'filtroActivo' (typo, variable no declarada)
   try {
     const r1 = await fetch('/api/productos', {headers: {'X-Filtro-Activo': 'true'}});
     const r2 = await fetch('/api/productos', {headers: {'X-Filtro-Activo': 'false'}});
-    // Verificar que ambas respuestas sean ok antes de parsear
     if (!r1.ok || !r2.ok) throw new Error('Respuesta inesperada del servidor');
     const activos       = await r1.json();
     const discontinuados = await r2.json();
-    // Guard: asegurarse de que sean arrays antes de spread
     todos = [
       ...(Array.isArray(activos)       ? activos       : []),
       ...(Array.isArray(discontinuados) ? discontinuados : [])
     ];
     todos.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    
+    filtroActual = filtroGuardado;
+    categoriaSeleccionada = catGuardada;
+    actualizarCategorias();
     aplicarFiltro();
-    cargarLogs(); // sincronizar actividad desde Redis
+    cargarLogs();
     if (usuarioActual && usuarioActual.rol === 'ADMIN') cargarReportes();
   } catch (e) {
     console.error('Error de red al cargar productos:', e);
@@ -141,7 +145,7 @@ async function cargarReportes() {
       document.getElementById('rep-activos').textContent  = data.activos;
       document.getElementById('rep-disc').textContent     = data.discontinuados;
       document.getElementById('rep-stock').textContent    = data.stockTotal;
-      document.getElementById('rep-valor').textContent    = '$' + (data.valorTotal / 1000000).toFixed(1) + 'M';
+document.getElementById('rep-valor').textContent = '$' + data.valorTotal.toLocaleString('es-AR');
       document.getElementById('rep-stock-bajo').textContent = data.stockBajo;
       document.getElementById('rep-categorias').textContent =
         Object.entries(data.categorias || {}).map(([cat, n]) => cat + ': ' + n).join(' · ');
@@ -195,31 +199,61 @@ async function cargarLogs() {
 function aplicarFiltro() {
   let lista = todos;
   
-  if      (filtroActual === 'todos')         lista = lista; // muestra todos: activos + discontinuados
-  else if (filtroActual === 'Perifericos')   lista = lista.filter(p => p.categoria === 'Perifericos' && esActivo(p));
-  else if (filtroActual === 'Samsung')       lista = lista.filter(p => p.marca === 'Samsung' && esActivo(p));
+  if      (filtroActual === 'todos')         lista = lista.filter(esActivo);
   else if (filtroActual === 'bajo')          lista = lista.filter(p => parseInt(p.stock) < 6 && esActivo(p));
   else if (filtroActual === 'discontinuados') lista = lista.filter(esInactivo);
   
+  if (categoriaSeleccionada) {
+    lista = lista.filter(p => p.categoria === categoriaSeleccionada && esActivo(p));
+  }
+  
   if (terminoBusqueda) {
     const t = terminoBusqueda.toLowerCase();
-    lista = lista.filter(p => p.nombre.toLowerCase().includes(t));
+    lista = lista.filter(p => p.nombre.toLowerCase().includes(t) || p.marca.toLowerCase().includes(t));
   }
   
   if      (ordenActual === 'precio-asc')  lista.sort((a, b) => parseInt(a.precio) - parseInt(b.precio));
   else if (ordenActual === 'precio-desc') lista.sort((a, b) => parseInt(b.precio) - parseInt(a.precio));
   else if (ordenActual === 'stock-asc')   lista.sort((a, b) => parseInt(a.stock)  - parseInt(b.stock));
   else if (ordenActual === 'stock-desc')  lista.sort((a, b) => parseInt(b.stock)  - parseInt(a.stock));
-  else lista.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+  else lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
   
   renderTabla(lista);
 }
 
 function filtrar(tipo, btn) {
   filtroActual = tipo;
+  if (tipo !== 'categoria') {
+    categoriaSeleccionada = '';
+    document.getElementById('filtro-cat').value = '';
+  }
   document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   aplicarFiltro();
+}
+
+function filtrarCategoria(cat) {
+  categoriaSeleccionada = cat;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  if (cat) {
+    document.getElementById('btn-todos').classList.add('active');
+  } else {
+    document.getElementById('btn-todos').classList.add('active');
+    filtroActual = 'todos';
+  }
+  aplicarFiltro();
+}
+
+function actualizarCategorias() {
+  const select = document.getElementById('filtro-cat');
+  const cats = [...new Set(todos.filter(p => esActivo(p)).map(p => p.categoria))].sort();
+  select.innerHTML = '<option value="">Categoría</option>';
+  cats.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    select.appendChild(opt);
+  });
 }
 
 function buscar(texto) {
@@ -253,7 +287,8 @@ function renderTabla(lista) {
       <td>
         ${esActivo(p) && puedeEditar ? `<button class="abtn edit" onclick="abrirEditar('${p.id}')">editar</button>` : ''}
         ${esActivo(p) && puedeBorrar ? `<button class="abtn del" onclick="eliminar('${p.id}')">borrar</button>` : ''}
-        ${esInactivo(p) ? `<span style="font-size:11px;color:#888">discontinuado</span>` : ''}
+        ${esInactivo(p) && puedeBorrar ? `<button class="abtn" onclick="abrirReactivar('${p.id}')" style="color:#22c55e">reactivar</button>` : ''}
+        ${esInactivo(p) && !puedeBorrar ? `<span style="font-size:11px;color:#888">discontinuado</span>` : ''}
       </td>
     </tr>
   `).join('');
@@ -343,9 +378,40 @@ function abrirEditar(id) {
 
 function cerrarModal() {
   document.getElementById('modal').style.display = 'none';
-  // Limpiar errores inline y restaurar estilos de los inputs del modal
   clearFieldErrors('m-nombre', 'm-marca', 'm-precio', 'm-stock');
   editId = null;
+}
+
+let reactivarId = null;
+
+function abrirReactivar(id) {
+  reactivarId = id;
+  const p = todos.find(x => x.id == id);
+  document.getElementById('reactivar-nombre').textContent = p.nombre + ' - ' + p.marca;
+  document.getElementById('reactivar-stock').value = '';
+  document.getElementById('reactivar-overlay').style.display = 'flex';
+}
+
+function cerrarReactivar() {
+  document.getElementById('reactivar-overlay').style.display = 'none';
+  reactivarId = null;
+}
+
+async function confirmarReactivar() {
+  const stock = document.getElementById('reactivar-stock').value;
+  if (!stock || parseInt(stock) < 1) {
+    alert('Ingresá un stock válido (mayor a 0)');
+    return;
+  }
+  
+  await fetch('/api/reactivar/' + reactivarId, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', ...authHeader()},
+    body: JSON.stringify({stock: stock})
+  });
+  
+  cerrarReactivar();
+  await cargar();
 }
 
 function showConfirm(titulo, mensaje, onConfirm) {

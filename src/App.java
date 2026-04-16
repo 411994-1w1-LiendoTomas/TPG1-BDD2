@@ -27,6 +27,7 @@ public class App {
         server.createContext("/api/productos", App::handleProductos);
         server.createContext("/api/reportes",  App::handleReportes);
         server.createContext("/api/logs",      App::handleLogs);
+        server.createContext("/api/reactivar", App::handleReactivar);
         server.createContext("/app.js",        App::handleJs);
         server.createContext("/",              App::handleStatic);
         server.start();
@@ -341,6 +342,7 @@ public class App {
             respond(ex, 409, "{\"error\":\"El producto ya está discontinuado\"}"); return;
         }
         jedis.hset(key, "activo", "false");
+        jedis.hset(key, "stock", "0");
         jedis.srem("productos:activos", key);
         String nombreDel = jedis.hget(key, "nombre");
         registrarLog("DELETE", nombreDel != null ? nombreDel : key, getUsername(ex));
@@ -404,6 +406,43 @@ public class App {
             }
             sb.append("]");
             respond(ex, 200, sb.toString());
+        } else {
+            respond(ex, 405, "{\"error\":\"Método no permitido\"}");
+        }
+    }
+
+    static void handleReactivar(HttpExchange ex) throws IOException {
+        addCors(ex);
+        if (ex.getRequestMethod().equals("OPTIONS")) {
+            ex.sendResponseHeaders(204, -1); return;
+        }
+        String rol = getRol(ex);
+        if (rol == null) {
+            respond(ex, 401, "{\"error\":\"No autenticado\"}"); return;
+        }
+        if (!rol.equals("ADMIN")) {
+            respond(ex, 403, "{\"error\":\"Solo ADMIN puede reaccionar productos\"}"); return;
+        }
+        if (ex.getRequestMethod().equals("POST")) {
+            String path = ex.getRequestURI().getPath();
+            String id = path.replace("/api/reactivar/", "").replace("/api/reactivar", "");
+            String key = "producto:" + id;
+            if (!jedis.exists(key)) {
+                respond(ex, 404, "{\"error\":\"Producto no encontrado\"}"); return;
+            }
+            if ("true".equals(jedis.hget(key, "activo"))) {
+                respond(ex, 409, "{\"error\":\"El producto ya está activo\"}"); return;
+            }
+            String body = new String(ex.getRequestBody().readAllBytes(), "UTF-8");
+            Map<String, String> data = parseJson(body);
+            String stock = data.getOrDefault("stock", "1");
+            jedis.hset(key, "activo", "true");
+            jedis.hset(key, "stock", stock);
+            jedis.sadd("productos:activos", key);
+            String nombre = jedis.hget(key, "nombre");
+            registrarLog("REACTIVATE", nombre != null ? nombre : key, getUsername(ex));
+            log("INFO", "REACTIVATE producto: " + key);
+            respond(ex, 200, "{\"ok\":true}");
         } else {
             respond(ex, 405, "{\"error\":\"Método no permitido\"}");
         }

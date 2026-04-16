@@ -144,7 +144,7 @@ tr:hover td{background:#fafafa}
         <div style="display:flex;gap:8px;align-items:center">
           <input type="text" id="busqueda" placeholder="Buscar..." style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;width:150px">
           <select id="ordenar" onchange="ordenar(this.value)" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px">
-            <option value="id">Ordenar</option>
+            <option value="nombre">Ordenar</option>
             <option value="precio-asc">Precio ↑</option>
             <option value="precio-desc">Precio ↓</option>
             <option value="stock-asc">Stock ↑</option>
@@ -153,11 +153,12 @@ tr:hover td{background:#fafafa}
         </div>
       </div>
       <div class="filters" style="padding:8px 1.25rem;border-bottom:1px solid #f0f0f0">
-        <button class="fbtn active" onclick="filtrar('todos',this)">Todos</button>
-        <button class="fbtn" onclick="filtrar('Perifericos',this)">Periféricos</button>
-        <button class="fbtn" onclick="filtrar('Samsung',this)">Samsung</button>
-        <button class="fbtn" onclick="filtrar('bajo',this)">Stock bajo</button>
-        <button class="fbtn" onclick="filtrar('discontinuados',this)">Discontinuados</button>
+        <button class="fbtn active" onclick="filtrar('todos',this)" id="btn-todos">Todos</button>
+        <select id="filtro-cat" onchange="filtrarCategoria(this.value)" style="padding:4px 8px;border:1px solid #ddd;border-radius:20px;font-size:12px;background:transparent;color:#666">
+          <option value="">Categoría</option>
+        </select>
+        <button class="fbtn" onclick="filtrar('bajo',this)" id="btn-bajo">Stock bajo</button>
+        <button class="fbtn" onclick="filtrar('discontinuados',this)" id="btn-discontinuados">Discontinuados</button>
       </div>
       <table>
         <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
@@ -238,6 +239,20 @@ tr:hover td{background:#fafafa}
     <div class="mbtns">
       <button class="btn-cancel" id="confirm-cancel">Cancelar</button>
       <button class="btn-primary" style="flex:1" id="confirm-ok">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="reactivar-overlay">
+  <div class="modal">
+    <h3>Reactivar producto</h3>
+    <label>Producto</label>
+    <div id="reactivar-nombre" style="padding:8px 10px;background:#fafafa;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;font-size:13px"></div>
+    <label>Stock</label>
+    <input type="number" id="reactivar-stock" min="1" placeholder="Cantidad">
+    <div class="mbtns">
+      <button class="btn-cancel" onclick="cerrarReactivar()">Cancelar</button>
+      <button class="btn-primary" style="flex:1" onclick="confirmarReactivar()">Reactivar</button>
     </div>
   </div>
 </div>
